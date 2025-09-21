@@ -20,6 +20,11 @@ tasks:
     generates:
       - diary
 
+  test:
+    desc: Run all tests
+    cmds:
+      - go test -v ./...
+
   clean:
     desc: Remove built binary
     cmds:
