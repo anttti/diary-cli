@@ -1,0 +1,32 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build the diary application
+    cmds:
+      - go build -o diary main.go
+
+  install:
+    desc: Build and install diary to ~/.bin/
+    deps: [build]
+    cmds:
+      - chmod +x diary
+      - mkdir -p ~/.bin
+      - cp diary ~/.bin/diary
+    silent: false
+    sources:
+      - main.go
+      - config/**/*.go
+    generates:
+      - diary
+
+  clean:
+    desc: Remove built binary
+    cmds:
+      - rm -f diary
+
+  dev:
+    desc: Build and install for development
+    cmds:
+      - task: install
+    silent: false
