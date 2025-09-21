@@ -11,15 +11,12 @@ import (
 	"diary-cli/config"
 )
 
-func main() {
-	// Load configuration from file
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Failed to load config: %v\n", err)
-		cfg = &config.Config{} // Use empty config on error
-	}
+type cliArgs struct {
+	dir  string
+	text string
+}
 
-	// Parse command line flags
+func parseFlags() (*cliArgs, error) {
 	defaultDir := "."
 	dir := flag.String("dir", defaultDir, "Directory to save diary files (default: current directory)")
 	flag.Usage = func() {
@@ -30,18 +27,20 @@ func main() {
 	}
 	flag.Parse()
 
-	// Get the text to append from remaining arguments
 	args := flag.Args()
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "Error: No text provided\n")
-		flag.Usage()
-		os.Exit(1)
+		return nil, fmt.Errorf("no text provided")
 	}
 
-	text := strings.Join(args, " ")
+	return &cliArgs{
+		dir:  *dir,
+		text: strings.Join(args, " "),
+	}, nil
+}
 
+func setupFileAndDir(dir string, cfg *config.Config) (*os.File, error) {
 	// Determine directory based on priority: CLI > Config > Default
-	finalDir := config.GetDir(*dir, cfg.Dir, defaultDir)
+	finalDir := config.GetDir(dir, cfg.Dir, ".")
 
 	// Generate filename based on current date
 	filename := time.Now().Format("2006-01-02") + ".md"
@@ -49,24 +48,59 @@ func main() {
 
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(finalDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating directory: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("creating directory: %w", err)
 	}
 
 	// Open file in append mode (creates if doesn't exist)
 	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error opening file: %v\n", err)
+		return nil, fmt.Errorf("opening file: %w", err)
+	}
+
+	return file, nil
+}
+
+func formatEntry(text string) string {
+	return fmt.Sprintf("[%s] %s\n", time.Now().Format("15:04:05"), text)
+}
+
+func writeEntry(file *os.File, entry string) error {
+	if _, err := file.WriteString(entry); err != nil {
+		return fmt.Errorf("writing to file: %w", err)
+	}
+	return nil
+}
+
+func main() {
+	// Load configuration from file
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Failed to load config: %v\n", err)
+		cfg = &config.Config{} // Use empty config on error
+	}
+
+	// Parse CLI flags
+	args, err := parseFlags()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	// Setup directory and open file
+	file, err := setupFileAndDir(args.dir, cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 	defer file.Close()
 
-	// Format the entry with timestamp
-	entry := fmt.Sprintf("[%s] %s\n", time.Now().Format("15:04:05"), text)
+	// Format the entry
+	entry := formatEntry(args.text)
 
-	// Write to file
-	if _, err := file.WriteString(entry); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing to file: %v\n", err)
+	// Write entry to file
+	if err := writeEntry(file, entry); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
