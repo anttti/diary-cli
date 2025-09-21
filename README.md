@@ -5,7 +5,7 @@ A simple command-line tool for maintaining daily diary entries in markdown files
 ## Installation
 
 ```bash
-go build -o diary
+task install
 ```
 
 ## Usage
@@ -19,13 +19,6 @@ go build -o diary
 ```bash
 ./diary -dir /path/to/diary/folder "Your diary entry text here"
 ```
-
-## Features
-
-- Creates daily markdown files with format `YYYY-MM-DD.md` (e.g., `2025-09-21.md`)
-- Appends entries with timestamps in format `[HH:MM:SS]`
-- Creates directories if they don't exist
-- Supports custom output directories via `-dir` flag
 
 ## Examples
 
